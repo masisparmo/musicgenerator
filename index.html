@@ -114,9 +114,24 @@
 
     <!-- Results Section -->
     <div id="statusSection" class="w-full max-w-3xl mt-6 hidden">
-        <!-- Logs -->
-        <div class="bg-black rounded-lg p-4 font-mono text-xs text-green-400 border border-gray-700 h-32 overflow-y-auto mb-4" id="consoleLog">
-            <div>> System Ready...</div>
+        <!-- Progress Bar -->
+        <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg mb-6">
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-gray-300" id="progressStatus">Menunggu Antrian...</span>
+                <span class="text-purple-400 font-bold" id="progressPercent">0%</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden border border-gray-600">
+                <div id="progressBar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+            <!-- Logs (Collapsed/Smaller) -->
+            <div class="mt-4">
+                <details class="text-xs text-gray-500 cursor-pointer">
+                    <summary class="hover:text-gray-300 transition">Lihat Detail Log System</summary>
+                    <div class="bg-black rounded mt-2 p-3 font-mono text-green-400 border border-gray-700 h-24 overflow-y-auto" id="consoleLog">
+                        <div>> System Ready...</div>
+                    </div>
+                </details>
+            </div>
         </div>
 
         <!-- Result Card -->
@@ -128,9 +143,9 @@
                 <audio id="audioPlayer" controls class="w-full"></audio>
                 
                 <div class="flex gap-3">
-                    <a id="downloadLink" href="#" target="_blank" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-center py-2 rounded transition">
+                    <button id="downloadBtn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-center py-2 rounded transition flex items-center justify-center">
                         <i class="fa-solid fa-download mr-2"></i>Download MP3
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -160,10 +175,14 @@
         const consoleLog = document.getElementById('consoleLog');
         const resultCard = document.getElementById('resultCard');
         const audioPlayer = document.getElementById('audioPlayer');
-        const downloadLink = document.getElementById('downloadLink');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressStatus = document.getElementById('progressStatus');
 
         // --- State ---
         let isProcessing = false;
+        let currentAudioUrl = "";
 
         // --- Event Listeners ---
         fileInput.addEventListener('change', (e) => {
@@ -341,11 +360,14 @@
                 customMode: true,
                 instrumental: instrumental,
                 model: "V4_5ALL",
-                callBackUrl: "https://google.com", // Dummy callback
+                callBackUrl: "https://google.com",
                 prompt: instrumental ? "" : lyrics,
                 style: tags,
-                title: fileInput.files[0].name.substring(0, 80), // Use filename as title, max 80 chars
-                vocalGender: "m" // Optional, default
+                title: fileInput.files[0].name.substring(0, 80),
+                vocalGender: "m",
+                // Tweak weights to favor new style (requested by user)
+                styleWeight: 0.8, // Increase style influence
+                audioWeight: 0.4  // Decrease original audio influence slightly
             };
 
             const response = await fetch(GENERATE_URL, {
@@ -370,6 +392,8 @@
             const maxAttempts = 60; // Timeout sekitar 5 menit (60 * 5s)
             let attempts = 0;
 
+            updateProgress(10, "Menunggu antrian server...");
+
             const interval = setInterval(async () => {
                 attempts++;
                 try {
@@ -385,13 +409,17 @@
                     }
 
                     const result = await response.json();
-                    
-                    // Struktur respons berdasarkan docs:
-                    // result.data.status = "PENDING" | "SUCCESS" | "GENERATE_AUDIO_FAILED"
-                    // result.data.response.sunoData = [{ audioUrl: "..." }, ...]
-                    
                     const status = result.data.status;
                     log(`Status check #${attempts}: ${status}`);
+
+                    // Update Progress Bar
+                    if (status === 'PENDING') {
+                        updateProgress(20 + (attempts % 10), "Sedang dalam antrian...");
+                    } else if (status === 'TEXT_SUCCESS') {
+                        updateProgress(50, "Memproses lirik dan gaya...");
+                    } else if (status === 'FIRST_SUCCESS') {
+                        updateProgress(80, "Finishing audio...");
+                    }
 
                     if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
                          const sunoData = result.data.response.sunoData;
@@ -430,11 +458,21 @@
             resultCard.classList.add('hidden');
             generateBtn.disabled = true;
             generateBtn.innerHTML = `<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 mr-2"></div> Memproses...`;
+            updateProgress(0, "Memulai proses...");
             log("Memulai proses...");
+        }
+
+        function updateProgress(percent, text) {
+            progressBar.style.width = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+            progressStatus.textContent = text;
         }
 
         function finishProcess(audioUrl) {
             isProcessing = false;
+            currentAudioUrl = audioUrl;
+
+            updateProgress(100, "Selesai!");
             generateBtn.disabled = false;
             generateBtn.innerHTML = `<span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Lagi</span>`;
             
@@ -442,10 +480,48 @@
             
             // Setup Player
             audioPlayer.src = audioUrl;
-            downloadLink.href = audioUrl;
+
+            // Setup Download Button
+            downloadBtn.onclick = () => forceDownload(audioUrl);
             
             resultCard.classList.remove('hidden');
             resultCard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function forceDownload(url) {
+            downloadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Downloading...`;
+            downloadBtn.disabled = true;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Gagal mengunduh file.");
+
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+
+                // Construct filename: original-name(cover).mp3
+                let originalName = fileInput.files[0] ? fileInput.files[0].name : "music";
+                // Remove extension
+                originalName = originalName.replace(/\.[^/.]+$/, "");
+                const newFilename = `${originalName}(cover).mp3`;
+
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = newFilename;
+                document.body.appendChild(a);
+                a.click();
+
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            } catch (err) {
+                alert("Download Error: " + err.message);
+                // Fallback: Open in new tab
+                window.open(url, '_blank');
+            } finally {
+                downloadBtn.innerHTML = `<i class="fa-solid fa-download mr-2"></i>Download MP3`;
+                downloadBtn.disabled = false;
+            }
         }
 
         function resetButton() {
