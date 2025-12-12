@@ -588,39 +588,19 @@
                     if (!uploadUrl) throw new Error("Gagal mendapatkan URL upload.");
                     log("Upload berhasil.");
 
-                    // Fallback Logic V5 -> V4.5
-                    try {
-                        log("Mencoba menggunakan Model V5...");
-                        taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V5");
-                        log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
-                    } catch (v5Error) {
-                        console.error("V5 Failed:", v5Error);
-                        log(`Model V5 Gagal: ${v5Error.message}. Mencoba fallback ke V4.5...`);
-                        taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V4_5ALL");
-                        log("Permintaan diterima dengan Model V4.5. Task ID: " + taskId);
-                    }
+                    // Enforce V5 (User Request)
+                    log("Mengirim permintaan generasi (V5)...");
+                    taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V5");
+                    log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
 
                 } else {
                     // --- CREATE NEW SONG MODE ---
                     log("Mode: Create New Song");
 
-                    // Fallback Logic V5 -> V4.5
-                    try {
-                        log("Mencoba menggunakan Model V5...");
-                        taskId = await requestCreateSong(key, tags, lyrics, "V5");
-                        log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
-                    } catch (v5Error) {
-                        console.error("V5 Failed:", v5Error);
-                        // Check for specific error "You do not have access permissions"
-                        if (v5Error.message.includes("access permissions")) {
-                             log("Model V5 tidak tersedia (Izin ditolak). Beralih ke V4.5...");
-                        } else {
-                             log(`Model V5 Gagal: ${v5Error.message}. Beralih ke V4.5...`);
-                        }
-
-                        taskId = await requestCreateSong(key, tags, lyrics, "V4_5ALL");
-                        log("Permintaan diterima dengan Model V4.5. Task ID: " + taskId);
-                    }
+                    // Enforce V5 (User Request)
+                    log("Mengirim permintaan generasi (V5)...");
+                    taskId = await requestCreateSong(key, tags, lyrics, "V5");
+                    log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
                 }
                 
                 if (!taskId) throw new Error("Gagal mendapatkan Task ID dari kedua model.");
