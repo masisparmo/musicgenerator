@@ -588,19 +588,33 @@
                     if (!uploadUrl) throw new Error("Gagal mendapatkan URL upload.");
                     log("Upload berhasil.");
 
-                    // Enforce V5 (User Request)
-                    log("Mengirim permintaan generasi (V5)...");
-                    taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V5");
-                    log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
+                    // Try V4_5ALL -> Fallback V4
+                    try {
+                        log("Mencoba menggunakan Model V4_5ALL...");
+                        taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V4_5ALL");
+                        log("Permintaan diterima dengan Model V4_5ALL. Task ID: " + taskId);
+                    } catch (err) {
+                        console.error("V4_5ALL Failed:", err);
+                        log(`Model V4_5ALL Gagal: ${err.message}. Mencoba fallback ke V4...`);
+                        taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V4");
+                        log("Permintaan diterima dengan Model V4. Task ID: " + taskId);
+                    }
 
                 } else {
                     // --- CREATE NEW SONG MODE ---
                     log("Mode: Create New Song");
 
-                    // Enforce V5 (User Request)
-                    log("Mengirim permintaan generasi (V5)...");
-                    taskId = await requestCreateSong(key, tags, lyrics, "V5");
-                    log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
+                    // Try V4_5ALL -> Fallback V4
+                    try {
+                         log("Mencoba menggunakan Model V4_5ALL...");
+                         taskId = await requestCreateSong(key, tags, lyrics, "V4_5ALL");
+                         log("Permintaan diterima dengan Model V4_5ALL. Task ID: " + taskId);
+                    } catch (err) {
+                         console.error("V4_5ALL Failed:", err);
+                         log(`Model V4_5ALL Gagal: ${err.message}. Mencoba fallback ke V4...`);
+                         taskId = await requestCreateSong(key, tags, lyrics, "V4");
+                         log("Permintaan diterima dengan Model V4. Task ID: " + taskId);
+                    }
                 }
                 
                 if (!taskId) throw new Error("Gagal mendapatkan Task ID dari kedua model.");
@@ -782,7 +796,8 @@
                 vocalGender: "m",
                 // Tweak weights to favor new style (requested by user)
                 styleWeight: 0.8, // Increase style influence
-                audioWeight: 0.4  // Decrease original audio influence slightly
+                audioWeight: 0.4,  // Decrease original audio influence slightly
+                weirdnessConstraint: 0.65 // Added per documentation
             };
 
             const response = await fetch(GENERATE_COVER_URL, {
@@ -815,7 +830,11 @@
                 prompt: lyrics,
                 style: tags,
                 title: songThemeInput.value.substring(0, 100) || "New Song",
-                vocalGender: "m"
+                vocalGender: "m",
+                // Additional parameters from documentation
+                styleWeight: 0.65,
+                weirdnessConstraint: 0.65,
+                audioWeight: 0.65
             };
 
             const response = await fetch(GENERATE_SONG_URL, {
