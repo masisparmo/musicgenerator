@@ -338,6 +338,7 @@
         enhanceStyleBtn.addEventListener('click', async () => {
             const geminiKey = geminiKeyInput.value.trim();
             const currentStyle = styleInput.value.trim();
+            const currentLyrics = lyricsInput.value.trim();
 
             if (!geminiKey) return alert("Mohon masukkan Gemini API Key terlebih dahulu.");
             if (!currentStyle) return alert("Mohon isi deskripsi gaya awal terlebih dahulu.");
@@ -349,7 +350,7 @@
             styleStatus.className = "text-xs text-indigo-400 mt-1";
 
             try {
-                const enhancedStyle = await enhanceStyleWithGemini(geminiKey, currentStyle);
+                const enhancedStyle = await enhanceStyleWithGemini(geminiKey, currentStyle, currentLyrics);
                 styleInput.value = enhancedStyle;
                 styleStatus.textContent = "Gaya berhasil disempurnakan!";
                 styleStatus.className = "text-xs text-green-400 mt-1";
@@ -460,11 +461,19 @@
             }
         }
 
-        async function enhanceStyleWithGemini(apiKey, currentStyle) {
+        async function enhanceStyleWithGemini(apiKey, currentStyle, lyrics) {
+            let prompt = `Analyze the musical style description: "${currentStyle}". `;
+
+            if (lyrics) {
+                prompt += `Also consider the emotion, rhythm, and structure of these lyrics: "${lyrics.substring(0, 1000)}...". `;
+            }
+
+            prompt += `Generate a comma-separated list of musical style tags that best fits the description (and lyrics if provided). Output ONLY the tags, no descriptive sentences. Max 1000 characters.`;
+
             const payload = {
                 "contents": [{
                     "parts": [
-                        { "text": `Enhance and detail the following musical style description. Keep the same language as the input. Provide two parts combined in one paragraph or list: 1. A descriptive sentence about the style. 2. A comma-separated list of musical tags. Input: "${currentStyle}"` }
+                        { "text": prompt }
                     ]
                 }]
             };
