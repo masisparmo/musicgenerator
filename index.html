@@ -66,6 +66,19 @@
                     </div>
                 </div>
 
+                <!-- Instrumental Toggle -->
+                <div class="flex items-center gap-2">
+                     <input type="checkbox" id="instrumentalCheck" class="w-5 h-5 text-purple-600 rounded bg-gray-700 border-gray-600 focus:ring-purple-500">
+                     <label for="instrumentalCheck" class="text-sm text-gray-400">Instrumental (Tanpa Lirik/Vokal)</label>
+                </div>
+
+                <!-- Lyrics Input -->
+                <div id="lyricsContainer">
+                    <label class="block text-sm text-gray-400 mb-2">Lirik Lagu (Wajib jika tidak Instrumental)</label>
+                    <textarea id="lyricsInput" rows="4" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Masukkan lirik lagu asli di sini agar vokal tetap terjaga..."></textarea>
+                    <p class="text-xs text-gray-500 mt-1">*Maaf, saat ini AI tidak bisa mengekstrak lirik otomatis. Mohon input manual.</p>
+                </div>
+
                 <!-- Style Input -->
                 <div>
                     <label class="block text-sm text-gray-400 mb-2">Deskripsi Gaya Baru (Tags)</label>
@@ -112,15 +125,18 @@
     <!-- JavaScript Logic -->
     <script>
         // --- Configuration ---
-        const BASE_URL = "https://site.sunoapi.org/api/v1"; // Sesuaikan jika ada perubahan endpoint dari provider
-        // Catatan: Base URL ini berdasarkan dokumentasi umum sunoapi.org. 
-        // Jika menggunakan custom domain atau proxy, ganti di sini.
+        const UPLOAD_URL = "https://sunoapiorg.redpandaai.co/api/file-stream-upload";
+        const GENERATE_URL = "https://api.sunoapi.org/api/v1/generate/upload-cover";
+        const STATUS_URL = "https://api.sunoapi.org/api/v1/generate/record-info";
 
         // --- Elements ---
         const apiKeyInput = document.getElementById('apiKey');
         const fileInput = document.getElementById('audioFile');
         const fileNameDisplay = document.getElementById('fileName');
         const styleInput = document.getElementById('styleTags');
+        const lyricsInput = document.getElementById('lyricsInput');
+        const instrumentalCheck = document.getElementById('instrumentalCheck');
+        const lyricsContainer = document.getElementById('lyricsContainer');
         const generateBtn = document.getElementById('generateBtn');
         const errorMsg = document.getElementById('errorMessage');
         const statusSection = document.getElementById('statusSection');
@@ -140,18 +156,29 @@
             }
         });
 
+        instrumentalCheck.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                lyricsContainer.classList.add('hidden');
+            } else {
+                lyricsContainer.classList.remove('hidden');
+            }
+        });
+
         generateBtn.addEventListener('click', async () => {
             if (isProcessing) return;
             
             const key = apiKeyInput.value.trim();
             const file = fileInput.files[0];
             const tags = styleInput.value.trim();
+            const instrumental = instrumentalCheck.checked;
+            const lyrics = lyricsInput.value.trim();
 
             // Validation
             errorMsg.classList.add('hidden');
             if (!key) return showError("API Key wajib diisi.");
             if (!file) return showError("Silakan pilih file lagu terlebih dahulu.");
             if (!tags) return showError("Deskripsi gaya (tags) tidak boleh kosong.");
+            if (!instrumental && !lyrics) return showError("Lirik wajib diisi jika bukan Instrumental.");
 
             startProcess();
 
@@ -165,7 +192,7 @@
 
                 // 2. Request Cover Generation
                 log("Mengirim permintaan Cover Generation...");
-                const taskId = await requestCover(key, uploadUrl, tags);
+                const taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics);
                 
                 if (!taskId) throw new Error("Gagal mendapatkan Task ID.");
                 log("Permintaan diterima. Task ID: " + taskId);
@@ -186,50 +213,56 @@
         async function uploadAudio(key, file) {
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('uploadPath', 'audio/user-uploads');
+            formData.append('fileName', file.name);
 
-            // Endpoint upload biasanya /upload atau /suno/upload
-            const response = await fetch(`${BASE_URL}/suno/upload`, {
+            const response = await fetch(UPLOAD_URL, {
                 method: 'POST',
                 headers: {
-                    'X-API-KEY': key
+                    'Authorization': `Bearer ${key}`
                 },
                 body: formData
             });
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || err.message || "Gagal upload file.");
+                throw new Error(err.msg || "Gagal upload file.");
             }
 
-            const data = await response.json();
-            // Struktur response bisa berbeda tergantung versi API, biasanya { url: "..." } atau { audio_url: "..." }
-            return data.url || data.audio_url || data.file_url; 
+            const result = await response.json();
+            // Expected: result.data.downloadUrl
+            return result.data.downloadUrl;
         }
 
-        async function requestCover(key, audioUrl, tags) {
+        async function requestCover(key, uploadUrl, tags, instrumental, lyrics) {
             const payload = {
-                audio_url: audioUrl,
-                tags: tags,
-                mv: "chirp-v3-0" // Model version, opsional
+                uploadUrl: uploadUrl,
+                customMode: true,
+                instrumental: instrumental,
+                model: "V4_5ALL",
+                callBackUrl: "https://google.com", // Dummy callback
+                prompt: instrumental ? "" : lyrics,
+                style: tags,
+                title: fileInput.files[0].name.substring(0, 80), // Use filename as title, max 80 chars
+                vocalGender: "m" // Optional, default
             };
 
-            const response = await fetch(`${BASE_URL}/suno/cover`, {
+            const response = await fetch(GENERATE_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-KEY': key
+                    'Authorization': `Bearer ${key}`
                 },
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || err.message || "Gagal request cover.");
+                throw new Error(err.msg || "Gagal request cover.");
             }
 
             const data = await response.json();
-            // Mencari Task ID. Biasanya dalam field 'id', 'task_id', atau 'clip_id'
-            return data.id || data.task_id;
+            return data.data.taskId;
         }
 
         async function pollStatus(key, taskId) {
@@ -239,11 +272,10 @@
             const interval = setInterval(async () => {
                 attempts++;
                 try {
-                    // Endpoint untuk get status bisa /suno/get/:id atau /suno/status/:id
-                    const response = await fetch(`${BASE_URL}/suno/get/${taskId}`, {
+                    const response = await fetch(`${STATUS_URL}?taskId=${taskId}`, {
                         method: 'GET',
                         headers: {
-                            'X-API-KEY': key
+                            'Authorization': `Bearer ${key}`
                         }
                     });
 
@@ -251,32 +283,24 @@
                         throw new Error("Gagal mengambil status task.");
                     }
 
-                    const data = await response.json();
+                    const result = await response.json();
                     
-                    // Struktur data Suno biasanya mengembalikan array clips atau single object
-                    // Kita perlu mengecek status. Status umum: 'queued', 'streaming', 'complete'
+                    // Struktur respons berdasarkan docs:
+                    // result.data.status = "PENDING" | "SUCCESS" | "GENERATE_AUDIO_FAILED"
+                    // result.data.response.sunoData = [{ audioUrl: "..." }, ...]
                     
-                    let status = data.status; // Sesuaikan dengan respon API
-                    
-                    // Jika data adalah array (biasanya Suno generate 2 lagu sekaligus)
-                    let clips = Array.isArray(data) ? data : [data];
-                    let currentClip = clips[0]; // Ambil yang pertama
-                    
-                    if (currentClip) {
-                        status = currentClip.status;
-                    }
-
+                    const status = result.data.status;
                     log(`Status check #${attempts}: ${status}`);
 
-                    if (status === 'complete' || status === 'streaming' || status === 'success') {
-                        // Cek apakah audio_url sudah tersedia
-                        if (currentClip.audio_url) {
+                    if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
+                         const sunoData = result.data.response.sunoData;
+                         if (sunoData && sunoData.length > 0 && sunoData[0].audioUrl) {
                             clearInterval(interval);
-                            finishProcess(currentClip.audio_url);
-                        }
-                    } else if (status === 'error' || status === 'failed') {
+                            finishProcess(sunoData[0].audioUrl);
+                         }
+                    } else if (status === 'GENERATE_AUDIO_FAILED' || status === 'CREATE_TASK_FAILED' || status === 'SENSITIVE_WORD_ERROR') {
                         clearInterval(interval);
-                        throw new Error("Generasi lagu gagal di sisi server.");
+                        throw new Error(`Generasi gagal: ${status}`);
                     }
 
                     if (attempts >= maxAttempts) {
@@ -285,8 +309,6 @@
                     }
 
                 } catch (err) {
-                    // Jangan stop interval hanya karena 1x gagal fetch (koneksi)
-                    // Tapi jika error fatal, stop.
                     console.error(err);
                     if (err.message.includes("Gagal mengambil")) {
                         // ignore glitch connection
