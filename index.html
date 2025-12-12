@@ -152,8 +152,26 @@
             <p class="text-sm text-gray-400 mb-4">Lagu Anda telah berhasil diubah gayanya.</p>
             
             <div class="bg-gray-900 rounded-lg p-4 flex flex-col gap-4">
-                <audio id="audioPlayer" controls class="w-full"></audio>
+                <!-- Custom Player -->
+                <audio id="audioElement" class="hidden"></audio>
                 
+                <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 flex items-center gap-4">
+                    <button id="playPauseBtn" class="w-12 h-12 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center transition shadow-lg group">
+                        <i class="fa-solid fa-play text-white text-xl ml-1 group-hover:scale-110 transition-transform"></i>
+                    </button>
+
+                    <div class="flex-1">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span id="currentTime">0:00</span>
+                            <span id="duration">0:00</span>
+                        </div>
+                        <div class="relative w-full h-2 bg-gray-700 rounded-full cursor-pointer group" id="seekContainer">
+                            <div id="seekFill" class="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full w-0 group-hover:from-purple-400 group-hover:to-pink-400 transition-colors"></div>
+                            <input type="range" id="seekSlider" min="0" max="100" value="0" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex gap-3">
                     <button id="downloadBtn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-center py-2 rounded transition flex items-center justify-center">
                         <i class="fa-solid fa-download mr-2"></i>Download MP3
@@ -188,10 +206,18 @@
         const statusSection = document.getElementById('statusSection');
         const consoleLog = document.getElementById('consoleLog');
         const resultCard = document.getElementById('resultCard');
-        const audioPlayer = document.getElementById('audioPlayer');
         const downloadBtn = document.getElementById('downloadBtn');
         const progressBar = document.getElementById('progressBar');
         const progressPercent = document.getElementById('progressPercent');
+
+        // Custom Player Elements
+        const audio = document.getElementById('audioElement');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = playPauseBtn.querySelector('i');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
+        const seekSlider = document.getElementById('seekSlider');
+        const seekFill = document.getElementById('seekFill');
         const progressStatus = document.getElementById('progressStatus');
         const lyricsCount = document.getElementById('lyricsCount');
         const styleCount = document.getElementById('styleCount');
@@ -199,8 +225,32 @@
         // --- State ---
         let isProcessing = false;
         let currentAudioUrl = "";
+        let isPlaying = false;
 
         // --- Event Listeners ---
+
+        // Player Logic
+        playPauseBtn.addEventListener('click', togglePlay);
+
+        audio.addEventListener('timeupdate', updateProgressUI);
+        audio.addEventListener('loadedmetadata', () => {
+             durationEl.textContent = formatTime(audio.duration);
+             seekSlider.max = Math.floor(audio.duration);
+        });
+        audio.addEventListener('ended', () => {
+            isPlaying = false;
+            updatePlayIcon();
+            seekSlider.value = 0;
+            seekFill.style.width = '0%';
+            currentTimeEl.textContent = "0:00";
+        });
+
+        seekSlider.addEventListener('input', (e) => {
+            const time = e.target.value;
+            audio.currentTime = time;
+            updateProgressUI(); // instant update
+        });
+
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -631,13 +681,56 @@
             log("Selesai! Audio URL diterima.");
             
             // Setup Player
-            audioPlayer.src = audioUrl;
+            audio.src = audioUrl;
+            // Reset UI
+            isPlaying = false;
+            updatePlayIcon();
+            seekSlider.value = 0;
+            seekFill.style.width = '0%';
+            currentTimeEl.textContent = "0:00";
 
             // Setup Download Button
             downloadBtn.onclick = () => forceDownload(audioUrl);
             
             resultCard.classList.remove('hidden');
             resultCard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function togglePlay() {
+            if (audio.paused) {
+                audio.play();
+                isPlaying = true;
+            } else {
+                audio.pause();
+                isPlaying = false;
+            }
+            updatePlayIcon();
+        }
+
+        function updatePlayIcon() {
+            if (isPlaying) {
+                playIcon.classList.remove('fa-play', 'ml-1');
+                playIcon.classList.add('fa-pause');
+            } else {
+                playIcon.classList.remove('fa-pause');
+                playIcon.classList.add('fa-play', 'ml-1');
+            }
+        }
+
+        function updateProgressUI() {
+            if (!audio.duration) return;
+            const current = audio.currentTime;
+            const percent = (current / audio.duration) * 100;
+
+            seekSlider.value = current;
+            seekFill.style.width = `${percent}%`;
+            currentTimeEl.textContent = formatTime(current);
+        }
+
+        function formatTime(seconds) {
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
         }
 
         async function forceDownload(url) {
