@@ -33,37 +33,54 @@
     <!-- Header -->
     <header class="w-full max-w-3xl mb-8 text-center pt-8">
         <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">
-            <i class="fa-solid fa-music mr-2"></i>Suno Cover Generator
+            <i class="fa-solid fa-music mr-2"></i>Suno Music Generator
         </h1>
-        <p class="text-gray-400">Ubah gaya lagu Anda menggunakan API Suno</p>
+        <p class="text-gray-400">Buat Lagu Baru atau Remix Lagu dengan AI</p>
     </header>
 
     <!-- Main Container -->
     <main class="w-full max-w-3xl bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
         
-        <!-- Step 1: Configuration -->
+        <!-- API Configuration (Always Visible) -->
         <div class="p-6 border-b border-gray-700 bg-gray-800/50">
-            <h2 class="text-xl font-semibold mb-4 text-purple-300"><i class="fa-solid fa-key mr-2"></i>1. Konfigurasi API</h2>
+            <h2 class="text-xl font-semibold mb-4 text-purple-300"><i class="fa-solid fa-key mr-2"></i>Konfigurasi API</h2>
             <div class="flex flex-col gap-4">
-                <!-- Suno Key -->
                 <div class="flex flex-col gap-2">
-                    <label class="text-sm text-gray-400">Suno API Key (Wajib - sunoapi.org)</label>
+                    <label class="text-sm text-gray-400">Suno API Key (Wajib)</label>
                     <input type="password" id="apiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition" placeholder="Masukkan Suno API Key...">
                 </div>
-
-                <!-- Gemini Key -->
                 <div class="flex flex-col gap-2">
-                    <label class="text-sm text-gray-400">Google Gemini API Key (Opsional - untuk Auto Lirik)</label>
-                    <input type="password" id="geminiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-teal-500 transition" placeholder="Masukkan Gemini API Key (aistudio.google.com)...">
+                    <label class="text-sm text-gray-400">Google Gemini API Key (Wajib untuk Fitur Auto)</label>
+                    <input type="password" id="geminiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-teal-500 transition" placeholder="Masukkan Gemini API Key...">
                 </div>
-                <p class="text-xs text-gray-500">Key Anda disimpan sementara di browser ini.</p>
             </div>
         </div>
 
-        <!-- Step 2: Upload & Settings -->
-        <div class="p-6 border-b border-gray-700">
-            <h2 class="text-xl font-semibold mb-4 text-purple-300"><i class="fa-solid fa-sliders mr-2"></i>2. Upload & Atur Gaya</h2>
-            
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-700">
+            <button id="tabCreate" class="flex-1 py-4 text-center font-semibold text-purple-400 border-b-2 border-purple-500 bg-gray-800 hover:bg-gray-750 transition">
+                <i class="fa-solid fa-plus mr-2"></i>Buat Lagu Baru
+            </button>
+            <button id="tabRemix" class="flex-1 py-4 text-center font-semibold text-gray-400 hover:text-white transition">
+                <i class="fa-solid fa-upload mr-2"></i>Remix / Cover
+            </button>
+        </div>
+
+        <!-- Tab Content: Create Song -->
+        <div id="createSection" class="p-6 border-b border-gray-700">
+             <div class="flex flex-col gap-4">
+                <label class="block text-sm text-gray-400">Tema Lagu</label>
+                <div class="flex gap-2">
+                    <input type="text" id="songTheme" class="flex-1 bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Contoh: Jatuh cinta di musim hujan, cyberpunk city...">
+                    <button id="generateLyricsBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded transition flex items-center gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-pen-nib"></i> Buat Lirik
+                    </button>
+                </div>
+             </div>
+        </div>
+
+        <!-- Tab Content: Remix / Cover (Hidden by default) -->
+        <div id="remixSection" class="hidden p-6 border-b border-gray-700">
             <div class="grid gap-6">
                 <!-- File Upload -->
                 <div>
@@ -80,21 +97,28 @@
                      <input type="checkbox" id="instrumentalCheck" class="w-5 h-5 text-purple-600 rounded bg-gray-700 border-gray-600 focus:ring-purple-500">
                      <label for="instrumentalCheck" class="text-sm text-gray-400">Instrumental (Tanpa Lirik/Vokal)</label>
                 </div>
+            </div>
+        </div>
 
-                <!-- Lyrics Input -->
-                <div id="lyricsContainer">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="block text-sm text-gray-400">Lirik Lagu (Wajib jika tidak Instrumental)</label>
-                        <button id="extractLyricsBtn" class="text-xs bg-teal-600 hover:bg-teal-700 text-white py-1 px-3 rounded transition flex items-center gap-1">
-                            <i class="fa-solid fa-wand-magic"></i> Auto Extract (Gemini)
-                        </button>
-                    </div>
-                    <textarea id="lyricsInput" rows="4" maxlength="5000" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Masukkan lirik lagu asli di sini agar vokal tetap terjaga..."></textarea>
-                    <div class="flex justify-between mt-1">
-                        <p class="text-xs text-gray-500" id="lyricsStatus">*Gunakan fitur Auto Extract jika Anda memiliki API Key Gemini.</p>
-                        <span class="text-xs text-gray-500" id="lyricsCount">0/5000</span>
-                    </div>
+        <!-- Shared Section: Lyrics & Style -->
+        <div class="p-6 border-b border-gray-700">
+             <h2 class="text-xl font-semibold mb-4 text-purple-300"><i class="fa-solid fa-pencil mr-2"></i>Detail Lagu</h2>
+
+             <!-- Lyrics Input -->
+             <div id="lyricsContainer" class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm text-gray-400">Lirik Lagu</label>
+                    <!-- Button only visible in Remix mode -->
+                    <button id="extractLyricsBtn" class="hidden text-xs bg-teal-600 hover:bg-teal-700 text-white py-1 px-3 rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-wand-magic"></i> Auto Extract (Dari Audio)
+                    </button>
                 </div>
+                <textarea id="lyricsInput" rows="6" maxlength="5000" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Lirik akan muncul di sini..."></textarea>
+                <div class="flex justify-between mt-1">
+                    <p class="text-xs text-gray-500" id="lyricsStatus"></p>
+                    <span class="text-xs text-gray-500" id="lyricsCount">0/5000</span>
+                </div>
+            </div>
 
                 <!-- Style Input -->
                 <div>
@@ -185,7 +209,8 @@
     <script>
         // --- Configuration ---
         const UPLOAD_URL = "https://sunoapiorg.redpandaai.co/api/file-stream-upload";
-        const GENERATE_URL = "https://api.sunoapi.org/api/v1/generate/upload-cover";
+        const GENERATE_COVER_URL = "https://api.sunoapi.org/api/v1/generate/upload-cover";
+        const GENERATE_SONG_URL = "https://api.sunoapi.org/api/v1/generate";
         const STATUS_URL = "https://api.sunoapi.org/api/v1/generate/record-info";
 
         // --- Elements ---
@@ -210,6 +235,14 @@
         const progressBar = document.getElementById('progressBar');
         const progressPercent = document.getElementById('progressPercent');
 
+        // Tabs
+        const tabCreate = document.getElementById('tabCreate');
+        const tabRemix = document.getElementById('tabRemix');
+        const createSection = document.getElementById('createSection');
+        const remixSection = document.getElementById('remixSection');
+        const songThemeInput = document.getElementById('songTheme');
+        const generateLyricsBtn = document.getElementById('generateLyricsBtn');
+
         // Custom Player Elements
         const audio = document.getElementById('audioElement');
         const playPauseBtn = document.getElementById('playPauseBtn');
@@ -226,8 +259,40 @@
         let isProcessing = false;
         let currentAudioUrl = "";
         let isPlaying = false;
+        let currentMode = "create"; // 'create' or 'remix'
 
         // --- Event Listeners ---
+
+        // Tab Switching
+        tabCreate.addEventListener('click', () => switchTab('create'));
+        tabRemix.addEventListener('click', () => switchTab('remix'));
+
+        function switchTab(mode) {
+            currentMode = mode;
+            if (mode === 'create') {
+                tabCreate.classList.add('text-purple-400', 'border-b-2', 'border-purple-500', 'bg-gray-800');
+                tabCreate.classList.remove('text-gray-400');
+                tabRemix.classList.remove('text-purple-400', 'border-b-2', 'border-purple-500', 'bg-gray-800');
+                tabRemix.classList.add('text-gray-400');
+
+                createSection.classList.remove('hidden');
+                remixSection.classList.add('hidden');
+                extractLyricsBtn.classList.add('hidden');
+
+                // Reset Instrumental Checkbox (Create mode usually wants lyrics unless instrumental is strictly desired)
+                instrumentalCheck.parentElement.parentElement.classList.add('hidden'); // Hide instrumental toggle in shared section if it was moved there?
+                // Wait, instrumental toggle is inside remix section in HTML now. Correct.
+            } else {
+                tabRemix.classList.add('text-purple-400', 'border-b-2', 'border-purple-500', 'bg-gray-800');
+                tabRemix.classList.remove('text-gray-400');
+                tabCreate.classList.remove('text-purple-400', 'border-b-2', 'border-purple-500', 'bg-gray-800');
+                tabCreate.classList.add('text-gray-400');
+
+                remixSection.classList.remove('hidden');
+                createSection.classList.add('hidden');
+                extractLyricsBtn.classList.remove('hidden');
+            }
+        }
 
         // Player Logic
         playPauseBtn.addEventListener('click', togglePlay);
@@ -249,6 +314,35 @@
             const time = e.target.value;
             audio.currentTime = time;
             updateProgressUI(); // instant update
+        });
+
+        generateLyricsBtn.addEventListener('click', async () => {
+            const geminiKey = geminiKeyInput.value.trim();
+            const theme = songThemeInput.value.trim();
+
+            if (!geminiKey) return alert("Mohon masukkan Gemini API Key terlebih dahulu.");
+            if (!theme) return alert("Mohon isi tema lagu terlebih dahulu.");
+
+            generateLyricsBtn.disabled = true;
+            generateLyricsBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+            lyricsStatus.textContent = "Sedang membuat lirik dengan Gemini...";
+            lyricsStatus.className = "text-xs text-teal-400 mt-1";
+
+            try {
+                const lyrics = await generateLyricsWithGemini(geminiKey, theme);
+                lyricsInput.value = lyrics;
+                lyricsStatus.textContent = "Lirik berhasil dibuat!";
+                lyricsStatus.className = "text-xs text-green-400 mt-1";
+                // Trigger input event to update char count
+                lyricsInput.dispatchEvent(new Event('input'));
+            } catch (err) {
+                console.error(err);
+                lyricsStatus.textContent = "Gagal membuat lirik: " + err.message;
+                lyricsStatus.className = "text-xs text-red-400 mt-1";
+            } finally {
+                generateLyricsBtn.disabled = false;
+                generateLyricsBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> Buat Lirik`;
+            }
         });
 
         fileInput.addEventListener('change', (e) => {
@@ -368,41 +462,68 @@
             if (isProcessing) return;
             
             const key = apiKeyInput.value.trim();
-            const file = fileInput.files[0];
             const tags = styleInput.value.trim();
-            const instrumental = instrumentalCheck.checked;
             const lyrics = lyricsInput.value.trim();
 
-            // Validation
+            // Common Validation
             errorMsg.classList.add('hidden');
             if (!key) return showError("API Key wajib diisi.");
-            if (!file) return showError("Silakan pilih file lagu terlebih dahulu.");
             if (!tags) return showError("Deskripsi gaya (tags) tidak boleh kosong.");
-            if (!instrumental && !lyrics) return showError("Lirik wajib diisi jika bukan Instrumental.");
+
+            if (currentMode === 'remix') {
+                const file = fileInput.files[0];
+                const instrumental = instrumentalCheck.checked;
+                if (!file) return showError("Silakan pilih file lagu terlebih dahulu.");
+                if (!instrumental && !lyrics) return showError("Lirik wajib diisi jika bukan Instrumental.");
+            } else {
+                // Create Mode
+                if (!lyrics) return showError("Lirik wajib diisi untuk membuat lagu baru.");
+            }
 
             startProcess();
 
             try {
-                // 1. Upload File
-                log("Mengupload file audio ke server...");
-                const uploadUrl = await uploadAudio(key, file);
-                
-                if (!uploadUrl) throw new Error("Gagal mendapatkan URL upload.");
-                log("Upload berhasil. URL Audio: " + uploadUrl.substring(0, 30) + "...");
-
-                // 2. Request Cover Generation (With Fallback V5 -> V4.5)
                 let taskId = null;
-                try {
-                    log("Mencoba menggunakan Model V5...");
-                    taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V5");
-                    log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
-                } catch (v5Error) {
-                    console.error("V5 Failed:", v5Error);
-                    log(`Model V5 Gagal: ${v5Error.message}. Mencoba fallback ke V4.5...`);
 
-                    // Fallback to V4.5
-                    taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V4_5ALL");
-                    log("Permintaan diterima dengan Model V4.5 (Fallback). Task ID: " + taskId);
+                if (currentMode === 'remix') {
+                    // --- REMIX / COVER MODE ---
+                    const file = fileInput.files[0];
+                    const instrumental = instrumentalCheck.checked;
+
+                    log("Mode: Remix / Cover");
+                    log("Mengupload file audio ke server...");
+                    const uploadUrl = await uploadAudio(key, file);
+
+                    if (!uploadUrl) throw new Error("Gagal mendapatkan URL upload.");
+                    log("Upload berhasil.");
+
+                    // Fallback Logic V5 -> V4.5
+                    try {
+                        log("Mencoba menggunakan Model V5...");
+                        taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V5");
+                        log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
+                    } catch (v5Error) {
+                        console.error("V5 Failed:", v5Error);
+                        log(`Model V5 Gagal: ${v5Error.message}. Mencoba fallback ke V4.5...`);
+                        taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V4_5ALL");
+                        log("Permintaan diterima dengan Model V4.5. Task ID: " + taskId);
+                    }
+
+                } else {
+                    // --- CREATE NEW SONG MODE ---
+                    log("Mode: Create New Song");
+
+                    // Fallback Logic V5 -> V4.5
+                    try {
+                        log("Mencoba menggunakan Model V5...");
+                        taskId = await requestCreateSong(key, tags, lyrics, "V5");
+                        log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
+                    } catch (v5Error) {
+                        console.error("V5 Failed:", v5Error);
+                        log(`Model V5 Gagal: ${v5Error.message}. Mencoba fallback ke V4.5...`);
+                        taskId = await requestCreateSong(key, tags, lyrics, "V4_5ALL");
+                        log("Permintaan diterima dengan Model V4.5. Task ID: " + taskId);
+                    }
                 }
                 
                 if (!taskId) throw new Error("Gagal mendapatkan Task ID dari kedua model.");
@@ -454,6 +575,40 @@
             const data = await response.json();
 
             // 4. Parse Response
+            if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                return data.candidates[0].content.parts[0].text.trim();
+            } else {
+                throw new Error("Format respons Gemini tidak dikenali.");
+            }
+        }
+
+        async function generateLyricsWithGemini(apiKey, theme) {
+            const prompt = `Buatkan lirik lagu lengkap berdasarkan tema: "${theme}".
+            Pastikan lirik memiliki struktur yang jelas (Verse 1, Chorus, Verse 2, Chorus, Outro).
+            Sangat penting: Perhatikan rima dan sajak agar enak dinyanyikan dan puitis.
+            Output HANYA teks liriknya saja, jangan ada kalimat pembuka atau penutup dari AI.`;
+
+            const payload = {
+                "contents": [{
+                    "parts": [
+                        { "text": prompt }
+                    ]
+                }]
+            };
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || "Gagal menghubungi Gemini.");
+            }
+
+            const data = await response.json();
+
             if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
                 return data.candidates[0].content.parts[0].text.trim();
             } else {
@@ -553,7 +708,7 @@
                 audioWeight: 0.4  // Decrease original audio influence slightly
             };
 
-            const response = await fetch(GENERATE_URL, {
+            const response = await fetch(GENERATE_COVER_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -568,13 +723,42 @@
             }
 
             const data = await response.json();
-
-            // Debugging: Log full response if structure is unexpected
             if (!data || !data.data || !data.data.taskId) {
-                console.error("API Response Error:", data);
                 throw new Error("Gagal mendapatkan Task ID. Respons server: " + (data.msg || JSON.stringify(data)));
             }
+            return data.data.taskId;
+        }
 
+        async function requestCreateSong(key, tags, lyrics, modelName) {
+             const payload = {
+                customMode: true,
+                instrumental: false, // Create Mode implies lyrics are used
+                model: modelName,
+                callBackUrl: "https://google.com",
+                prompt: lyrics,
+                style: tags,
+                title: songThemeInput.value.substring(0, 100) || "New Song",
+                vocalGender: "m"
+            };
+
+            const response = await fetch(GENERATE_SONG_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${key}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+             if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.msg || "Gagal request create song.");
+            }
+
+            const data = await response.json();
+            if (!data || !data.data || !data.data.taskId) {
+                throw new Error("Gagal mendapatkan Task ID. Respons server: " + (data.msg || JSON.stringify(data)));
+            }
             return data.data.taskId;
         }
 
