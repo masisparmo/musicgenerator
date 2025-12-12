@@ -60,9 +60,9 @@
         <div id="createSection" class="p-6 border-b border-gray-700">
              <div class="flex flex-col gap-4">
                 <label class="block text-sm text-gray-400">Tema Lagu</label>
-                <div class="flex gap-2">
-                    <input type="text" id="songTheme" maxlength="80" class="flex-1 bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Contoh: Jatuh cinta di musim hujan, cyberpunk city...">
-                    <button id="generateLyricsBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded transition flex items-center gap-2 whitespace-nowrap">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="songTheme" class="flex-1 bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Contoh: Jatuh cinta di musim hujan, cyberpunk city...">
+                    <button id="generateLyricsBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded transition flex items-center justify-center gap-2 whitespace-nowrap">
                         <i class="fa-solid fa-pen-nib"></i> Buat Lirik
                     </button>
                 </div>
@@ -837,7 +837,7 @@
                 callBackUrl: "https://google.com",
                 prompt: lyrics,
                 style: tags,
-                title: songThemeInput.value.substring(0, 100) || "New Song",
+                title: songThemeInput.value.substring(0, 80) || "New Song",
                 vocalGender: "m",
                 // Additional parameters from documentation
                 styleWeight: 0.65,
