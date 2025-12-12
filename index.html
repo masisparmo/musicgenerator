@@ -44,9 +44,18 @@
         <!-- Step 1: Configuration -->
         <div class="p-6 border-b border-gray-700 bg-gray-800/50">
             <h2 class="text-xl font-semibold mb-4 text-purple-300"><i class="fa-solid fa-key mr-2"></i>1. Konfigurasi API</h2>
-            <div class="flex flex-col gap-2">
-                <label class="text-sm text-gray-400">Masukkan API Key (sunoapi.org)</label>
-                <input type="password" id="apiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition" placeholder="Masukkan API Key Anda di sini...">
+            <div class="flex flex-col gap-4">
+                <!-- Suno Key -->
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm text-gray-400">Suno API Key (Wajib - sunoapi.org)</label>
+                    <input type="password" id="apiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition" placeholder="Masukkan Suno API Key...">
+                </div>
+
+                <!-- Gemini Key -->
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm text-gray-400">Google Gemini API Key (Opsional - untuk Auto Lirik)</label>
+                    <input type="password" id="geminiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-teal-500 transition" placeholder="Masukkan Gemini API Key (aistudio.google.com)...">
+                </div>
                 <p class="text-xs text-gray-500">Key Anda disimpan sementara di browser ini.</p>
             </div>
         </div>
@@ -64,6 +73,24 @@
                         <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-500 mb-2"></i>
                         <p id="fileName" class="text-gray-400">Klik atau seret file audio ke sini</p>
                     </div>
+                </div>
+
+                <!-- Instrumental Toggle -->
+                <div class="flex items-center gap-2">
+                     <input type="checkbox" id="instrumentalCheck" class="w-5 h-5 text-purple-600 rounded bg-gray-700 border-gray-600 focus:ring-purple-500">
+                     <label for="instrumentalCheck" class="text-sm text-gray-400">Instrumental (Tanpa Lirik/Vokal)</label>
+                </div>
+
+                <!-- Lyrics Input -->
+                <div id="lyricsContainer">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm text-gray-400">Lirik Lagu (Wajib jika tidak Instrumental)</label>
+                        <button id="extractLyricsBtn" class="text-xs bg-teal-600 hover:bg-teal-700 text-white py-1 px-3 rounded transition flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic"></i> Auto Extract (Gemini)
+                        </button>
+                    </div>
+                    <textarea id="lyricsInput" rows="4" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Masukkan lirik lagu asli di sini agar vokal tetap terjaga..."></textarea>
+                    <p class="text-xs text-gray-500 mt-1" id="lyricsStatus">*Gunakan fitur Auto Extract jika Anda memiliki API Key Gemini.</p>
                 </div>
 
                 <!-- Style Input -->
@@ -112,15 +139,21 @@
     <!-- JavaScript Logic -->
     <script>
         // --- Configuration ---
-        const BASE_URL = "https://site.sunoapi.org/api/v1"; // Sesuaikan jika ada perubahan endpoint dari provider
-        // Catatan: Base URL ini berdasarkan dokumentasi umum sunoapi.org. 
-        // Jika menggunakan custom domain atau proxy, ganti di sini.
+        const UPLOAD_URL = "https://sunoapiorg.redpandaai.co/api/file-stream-upload";
+        const GENERATE_URL = "https://api.sunoapi.org/api/v1/generate/upload-cover";
+        const STATUS_URL = "https://api.sunoapi.org/api/v1/generate/record-info";
 
         // --- Elements ---
         const apiKeyInput = document.getElementById('apiKey');
+        const geminiKeyInput = document.getElementById('geminiKey');
         const fileInput = document.getElementById('audioFile');
         const fileNameDisplay = document.getElementById('fileName');
         const styleInput = document.getElementById('styleTags');
+        const lyricsInput = document.getElementById('lyricsInput');
+        const instrumentalCheck = document.getElementById('instrumentalCheck');
+        const lyricsContainer = document.getElementById('lyricsContainer');
+        const extractLyricsBtn = document.getElementById('extractLyricsBtn');
+        const lyricsStatus = document.getElementById('lyricsStatus');
         const generateBtn = document.getElementById('generateBtn');
         const errorMsg = document.getElementById('errorMessage');
         const statusSection = document.getElementById('statusSection');
@@ -140,18 +173,57 @@
             }
         });
 
+        instrumentalCheck.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                lyricsContainer.classList.add('hidden');
+            } else {
+                lyricsContainer.classList.remove('hidden');
+            }
+        });
+
+        extractLyricsBtn.addEventListener('click', async () => {
+            const geminiKey = geminiKeyInput.value.trim();
+            const file = fileInput.files[0];
+
+            if (!geminiKey) return alert("Mohon masukkan Gemini API Key terlebih dahulu.");
+            if (!file) return alert("Mohon upload file audio terlebih dahulu.");
+
+            // Start Loading
+            extractLyricsBtn.disabled = true;
+            extractLyricsBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+            lyricsStatus.textContent = "Sedang mengirim audio ke Gemini (Mungkin memakan waktu beberapa detik)...";
+            lyricsStatus.className = "text-xs text-teal-400 mt-1";
+
+            try {
+                const lyrics = await extractLyricsWithGemini(geminiKey, file);
+                lyricsInput.value = lyrics;
+                lyricsStatus.textContent = "Lirik berhasil diekstrak!";
+                lyricsStatus.className = "text-xs text-green-400 mt-1";
+            } catch (err) {
+                console.error(err);
+                lyricsStatus.textContent = "Gagal ekstrak: " + err.message;
+                lyricsStatus.className = "text-xs text-red-400 mt-1";
+            } finally {
+                extractLyricsBtn.disabled = false;
+                extractLyricsBtn.innerHTML = `<i class="fa-solid fa-wand-magic"></i> Auto Extract (Gemini)`;
+            }
+        });
+
         generateBtn.addEventListener('click', async () => {
             if (isProcessing) return;
             
             const key = apiKeyInput.value.trim();
             const file = fileInput.files[0];
             const tags = styleInput.value.trim();
+            const instrumental = instrumentalCheck.checked;
+            const lyrics = lyricsInput.value.trim();
 
             // Validation
             errorMsg.classList.add('hidden');
             if (!key) return showError("API Key wajib diisi.");
             if (!file) return showError("Silakan pilih file lagu terlebih dahulu.");
             if (!tags) return showError("Deskripsi gaya (tags) tidak boleh kosong.");
+            if (!instrumental && !lyrics) return showError("Lirik wajib diisi jika bukan Instrumental.");
 
             startProcess();
 
@@ -165,7 +237,7 @@
 
                 // 2. Request Cover Generation
                 log("Mengirim permintaan Cover Generation...");
-                const taskId = await requestCover(key, uploadUrl, tags);
+                const taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics);
                 
                 if (!taskId) throw new Error("Gagal mendapatkan Task ID.");
                 log("Permintaan diterima. Task ID: " + taskId);
@@ -183,53 +255,115 @@
 
         // --- Core Functions ---
 
+        async function extractLyricsWithGemini(apiKey, file) {
+            // 1. Convert File to Base64
+            const base64Data = await fileToBase64(file);
+
+            // 2. Prepare Payload
+            const payload = {
+                "contents": [{
+                    "parts": [
+                        { "text": "Transcribe the lyrics from this audio file accurately. Output ONLY the lyrics text, do not add any introduction, explanation, or timestamps. Just the plain lyrics." },
+                        {
+                            "inline_data": {
+                                "mime_type": file.type || "audio/mp3",
+                                "data": base64Data
+                            }
+                        }
+                    ]
+                }]
+            };
+
+            // 3. Call Gemini API
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || "Gagal menghubungi Gemini.");
+            }
+
+            const data = await response.json();
+
+            // 4. Parse Response
+            if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                return data.candidates[0].content.parts[0].text.trim();
+            } else {
+                throw new Error("Format respons Gemini tidak dikenali.");
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    // Result format: "data:audio/mp3;base64,....."
+                    // We need to remove the prefix
+                    const result = reader.result;
+                    const base64 = result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+
         async function uploadAudio(key, file) {
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('uploadPath', 'audio/user-uploads');
+            formData.append('fileName', file.name);
 
-            // Endpoint upload biasanya /upload atau /suno/upload
-            const response = await fetch(`${BASE_URL}/suno/upload`, {
+            const response = await fetch(UPLOAD_URL, {
                 method: 'POST',
                 headers: {
-                    'X-API-KEY': key
+                    'Authorization': `Bearer ${key}`
                 },
                 body: formData
             });
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || err.message || "Gagal upload file.");
+                throw new Error(err.msg || "Gagal upload file.");
             }
 
-            const data = await response.json();
-            // Struktur response bisa berbeda tergantung versi API, biasanya { url: "..." } atau { audio_url: "..." }
-            return data.url || data.audio_url || data.file_url; 
+            const result = await response.json();
+            // Expected: result.data.downloadUrl
+            return result.data.downloadUrl;
         }
 
-        async function requestCover(key, audioUrl, tags) {
+        async function requestCover(key, uploadUrl, tags, instrumental, lyrics) {
             const payload = {
-                audio_url: audioUrl,
-                tags: tags,
-                mv: "chirp-v3-0" // Model version, opsional
+                uploadUrl: uploadUrl,
+                customMode: true,
+                instrumental: instrumental,
+                model: "V4_5ALL",
+                callBackUrl: "https://google.com", // Dummy callback
+                prompt: instrumental ? "" : lyrics,
+                style: tags,
+                title: fileInput.files[0].name.substring(0, 80), // Use filename as title, max 80 chars
+                vocalGender: "m" // Optional, default
             };
 
-            const response = await fetch(`${BASE_URL}/suno/cover`, {
+            const response = await fetch(GENERATE_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-KEY': key
+                    'Authorization': `Bearer ${key}`
                 },
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || err.message || "Gagal request cover.");
+                throw new Error(err.msg || "Gagal request cover.");
             }
 
             const data = await response.json();
-            // Mencari Task ID. Biasanya dalam field 'id', 'task_id', atau 'clip_id'
-            return data.id || data.task_id;
+            return data.data.taskId;
         }
 
         async function pollStatus(key, taskId) {
@@ -239,11 +373,10 @@
             const interval = setInterval(async () => {
                 attempts++;
                 try {
-                    // Endpoint untuk get status bisa /suno/get/:id atau /suno/status/:id
-                    const response = await fetch(`${BASE_URL}/suno/get/${taskId}`, {
+                    const response = await fetch(`${STATUS_URL}?taskId=${taskId}`, {
                         method: 'GET',
                         headers: {
-                            'X-API-KEY': key
+                            'Authorization': `Bearer ${key}`
                         }
                     });
 
@@ -251,32 +384,24 @@
                         throw new Error("Gagal mengambil status task.");
                     }
 
-                    const data = await response.json();
+                    const result = await response.json();
                     
-                    // Struktur data Suno biasanya mengembalikan array clips atau single object
-                    // Kita perlu mengecek status. Status umum: 'queued', 'streaming', 'complete'
+                    // Struktur respons berdasarkan docs:
+                    // result.data.status = "PENDING" | "SUCCESS" | "GENERATE_AUDIO_FAILED"
+                    // result.data.response.sunoData = [{ audioUrl: "..." }, ...]
                     
-                    let status = data.status; // Sesuaikan dengan respon API
-                    
-                    // Jika data adalah array (biasanya Suno generate 2 lagu sekaligus)
-                    let clips = Array.isArray(data) ? data : [data];
-                    let currentClip = clips[0]; // Ambil yang pertama
-                    
-                    if (currentClip) {
-                        status = currentClip.status;
-                    }
-
+                    const status = result.data.status;
                     log(`Status check #${attempts}: ${status}`);
 
-                    if (status === 'complete' || status === 'streaming' || status === 'success') {
-                        // Cek apakah audio_url sudah tersedia
-                        if (currentClip.audio_url) {
+                    if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
+                         const sunoData = result.data.response.sunoData;
+                         if (sunoData && sunoData.length > 0 && sunoData[0].audioUrl) {
                             clearInterval(interval);
-                            finishProcess(currentClip.audio_url);
-                        }
-                    } else if (status === 'error' || status === 'failed') {
+                            finishProcess(sunoData[0].audioUrl);
+                         }
+                    } else if (status === 'GENERATE_AUDIO_FAILED' || status === 'CREATE_TASK_FAILED' || status === 'SENSITIVE_WORD_ERROR') {
                         clearInterval(interval);
-                        throw new Error("Generasi lagu gagal di sisi server.");
+                        throw new Error(`Generasi gagal: ${status}`);
                     }
 
                     if (attempts >= maxAttempts) {
@@ -285,8 +410,6 @@
                     }
 
                 } catch (err) {
-                    // Jangan stop interval hanya karena 1x gagal fetch (koneksi)
-                    // Tapi jika error fatal, stop.
                     console.error(err);
                     if (err.message.includes("Gagal mengambil")) {
                         // ignore glitch connection
