@@ -501,7 +501,12 @@
                          }
                     } else if (status === 'GENERATE_AUDIO_FAILED' || status === 'CREATE_TASK_FAILED' || status === 'SENSITIVE_WORD_ERROR') {
                         clearInterval(interval);
-                        throw new Error(`Generasi gagal: ${status}`);
+                        // Try to extract more details
+                        let detailedMsg = result.msg || "Server tidak memberikan alasan spesifik.";
+                        if (result.data && result.data.errorMessage) detailedMsg = result.data.errorMessage;
+
+                        log(`Failure Details: ${JSON.stringify(result)}`);
+                        throw new Error(`Generasi Gagal (${status}): ${detailedMsg}`);
                     }
 
                     if (attempts >= maxAttempts) {
@@ -515,7 +520,8 @@
                         // ignore glitch connection
                     } else {
                         clearInterval(interval);
-                        showError(err.message);
+                        // Don't auto-hide critical errors so user can read them
+                        showError(err.message, false);
                         resetButton();
                     }
                 }
@@ -602,11 +608,13 @@
             generateBtn.innerHTML = `<span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Cover</span>`;
         }
 
-        function showError(msg) {
+        function showError(msg, autoHide = true) {
             errorMsg.textContent = msg;
             errorMsg.classList.remove('hidden');
-            // Auto hide after 5s
-            setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+
+            if (autoHide) {
+                setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+            }
         }
 
         function log(msg) {
