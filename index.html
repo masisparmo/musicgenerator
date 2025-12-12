@@ -557,7 +557,11 @@
                          let sunoData = [];
                          if (result.data.response && result.data.response.sunoData) {
                              sunoData = result.data.response.sunoData;
+                         } else if (result.data.response && result.data.response.data) {
+                             // Quick Start guide structure
+                             sunoData = result.data.response.data;
                          } else if (result.data.data) {
+                             // Callback structure
                              sunoData = result.data.data;
                          }
 
