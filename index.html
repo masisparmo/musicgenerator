@@ -67,7 +67,7 @@
             <div class="grid gap-6">
                 <!-- File Upload -->
                 <div>
-                    <label class="block text-sm text-gray-400 mb-2">Upload Lagu Original (Max 10MB, Max 60 Detik)</label>
+                    <label class="block text-sm text-gray-400 mb-2">Upload Lagu Original (Max 50MB, Max 8 Menit)</label>
                     <div class="relative border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-purple-500 transition cursor-pointer" id="dropZone">
                         <input type="file" id="audioFile" accept="audio/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                         <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-500 mb-2"></i>
@@ -204,24 +204,24 @@
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                // 1. Size Check (10MB)
-                if (file.size > 10 * 1024 * 1024) {
-                    alert("File terlalu besar! Maksimal 10MB.");
+                // 1. Size Check (50MB)
+                if (file.size > 50 * 1024 * 1024) {
+                    alert("File terlalu besar! Maksimal 50MB.");
                     fileInput.value = "";
                     fileNameDisplay.textContent = "Klik atau seret file audio ke sini";
                     fileNameDisplay.classList.remove("text-purple-400");
                     return;
                 }
 
-                // 2. Duration Check (60s)
+                // 2. Duration Check (8 minutes = 480s)
                 const audio = new Audio();
                 const objectUrl = URL.createObjectURL(file);
                 audio.src = objectUrl;
 
                 audio.onloadedmetadata = () => {
                     URL.revokeObjectURL(objectUrl);
-                    if (audio.duration > 60) {
-                        alert("Durasi audio terlalu panjang! Maksimal 60 detik untuk model ini.");
+                    if (audio.duration > 480) {
+                        alert("Durasi audio terlalu panjang! Maksimal 8 menit untuk model ini.");
                         fileInput.value = "";
                         fileNameDisplay.textContent = "Klik atau seret file audio ke sini";
                         fileNameDisplay.classList.remove("text-purple-400");
@@ -339,12 +339,22 @@
                 if (!uploadUrl) throw new Error("Gagal mendapatkan URL upload.");
                 log("Upload berhasil. URL Audio: " + uploadUrl.substring(0, 30) + "...");
 
-                // 2. Request Cover Generation
-                log("Mengirim permintaan Cover Generation...");
-                const taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics);
+                // 2. Request Cover Generation (With Fallback V5 -> V4.5)
+                let taskId = null;
+                try {
+                    log("Mencoba menggunakan Model V5...");
+                    taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V5");
+                    log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
+                } catch (v5Error) {
+                    console.error("V5 Failed:", v5Error);
+                    log(`Model V5 Gagal: ${v5Error.message}. Mencoba fallback ke V4.5...`);
+
+                    // Fallback to V4.5
+                    taskId = await requestCover(key, uploadUrl, tags, instrumental, lyrics, "V4_5ALL");
+                    log("Permintaan diterima dengan Model V4.5 (Fallback). Task ID: " + taskId);
+                }
                 
-                if (!taskId) throw new Error("Gagal mendapatkan Task ID.");
-                log("Permintaan diterima. Task ID: " + taskId);
+                if (!taskId) throw new Error("Gagal mendapatkan Task ID dari kedua model.");
 
                 // 3. Polling Status
                 log("Menunggu proses generasi (Polling)...");
@@ -468,16 +478,16 @@
             return result.data.downloadUrl;
         }
 
-        async function requestCover(key, uploadUrl, tags, instrumental, lyrics) {
+        async function requestCover(key, uploadUrl, tags, instrumental, lyrics, modelName) {
             const payload = {
                 uploadUrl: uploadUrl,
                 customMode: true,
                 instrumental: instrumental,
-                model: "V4_5ALL",
+                model: modelName,
                 callBackUrl: "https://google.com",
                 prompt: instrumental ? "" : lyrics,
                 style: tags,
-                title: fileInput.files[0].name.substring(0, 80),
+                title: fileInput.files[0].name.substring(0, 100),
                 vocalGender: "m",
                 // Tweak weights to favor new style (requested by user)
                 styleWeight: 0.8, // Increase style influence
@@ -543,10 +553,21 @@
                     }
 
                     if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
-                         const sunoData = result.data.response.sunoData;
-                         if (sunoData && sunoData.length > 0 && sunoData[0].audioUrl) {
-                            clearInterval(interval);
-                            finishProcess(sunoData[0].audioUrl);
+                         // Support multiple response structures (documented vs observed)
+                         let sunoData = [];
+                         if (result.data.response && result.data.response.sunoData) {
+                             sunoData = result.data.response.sunoData;
+                         } else if (result.data.data) {
+                             sunoData = result.data.data;
+                         }
+
+                         if (sunoData && sunoData.length > 0) {
+                            // Check for audio_url (snake_case) or audioUrl (camelCase)
+                            const audioUrl = sunoData[0].audio_url || sunoData[0].audioUrl;
+                            if (audioUrl) {
+                                clearInterval(interval);
+                                finishProcess(audioUrl);
+                            }
                          }
                     } else if (status === 'GENERATE_AUDIO_FAILED' || status === 'CREATE_TASK_FAILED' || status === 'SENSITIVE_WORD_ERROR') {
                         clearInterval(interval);
