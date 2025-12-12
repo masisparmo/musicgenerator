@@ -130,7 +130,7 @@
         <!-- Step 3: Action -->
         <div class="p-6 bg-gray-800/50">
             <button id="generateBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
-                <span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Cover</span>
+                <span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Lagu</span>
             </button>
             
             <!-- Error Message -->
@@ -611,7 +611,13 @@
                         log("Permintaan diterima dengan Model V5. Task ID: " + taskId);
                     } catch (v5Error) {
                         console.error("V5 Failed:", v5Error);
-                        log(`Model V5 Gagal: ${v5Error.message}. Mencoba fallback ke V4.5...`);
+                        // Check for specific error "You do not have access permissions"
+                        if (v5Error.message.includes("access permissions")) {
+                             log("Model V5 tidak tersedia (Izin ditolak). Beralih ke V4.5...");
+                        } else {
+                             log(`Model V5 Gagal: ${v5Error.message}. Beralih ke V4.5...`);
+                        }
+
                         taskId = await requestCreateSong(key, tags, lyrics, "V4_5ALL");
                         log("Permintaan diterima dengan Model V4.5. Task ID: " + taskId);
                     }
@@ -960,7 +966,7 @@
 
             updateProgress(100, "Selesai!");
             generateBtn.disabled = false;
-            generateBtn.innerHTML = `<span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Lagi</span>`;
+            generateBtn.innerHTML = `<span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Lagu</span>`;
             
             log("Selesai! Audio URL diterima.");
             
@@ -1056,7 +1062,7 @@
         function resetButton() {
             isProcessing = false;
             generateBtn.disabled = false;
-            generateBtn.innerHTML = `<span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Cover</span>`;
+            generateBtn.innerHTML = `<span><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Generate Lagu</span>`;
         }
 
         function showError(msg, autoHide = true) {
