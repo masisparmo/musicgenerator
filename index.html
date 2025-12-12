@@ -31,31 +31,21 @@
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
 
     <!-- Header -->
-    <header class="w-full max-w-3xl mb-8 text-center pt-8">
-        <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">
-            <i class="fa-solid fa-music mr-2"></i>Suno Music Generator
-        </h1>
-        <p class="text-gray-400">Buat Lagu Baru atau Remix Lagu dengan AI</p>
+    <header class="w-full max-w-3xl mb-8 flex justify-between items-center pt-8 px-4">
+        <div class="text-left">
+            <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-1">
+                <i class="fa-solid fa-music mr-2"></i>Suno Music
+            </h1>
+            <p class="text-sm text-gray-400">AI Song Generator & Remix</p>
+        </div>
+        <button id="settingsBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white p-3 rounded-full transition shadow-lg border border-gray-700" title="Pengaturan API">
+            <i class="fa-solid fa-gear text-xl"></i>
+        </button>
     </header>
 
     <!-- Main Container -->
     <main class="w-full max-w-3xl bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
         
-        <!-- API Configuration (Always Visible) -->
-        <div class="p-6 border-b border-gray-700 bg-gray-800/50">
-            <h2 class="text-xl font-semibold mb-4 text-purple-300"><i class="fa-solid fa-key mr-2"></i>Konfigurasi API</h2>
-            <div class="flex flex-col gap-4">
-                <div class="flex flex-col gap-2">
-                    <label class="text-sm text-gray-400">Suno API Key (Wajib)</label>
-                    <input type="password" id="apiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition" placeholder="Masukkan Suno API Key...">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="text-sm text-gray-400">Google Gemini API Key (Wajib untuk Fitur Auto)</label>
-                    <input type="password" id="geminiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-teal-500 transition" placeholder="Masukkan Gemini API Key...">
-                </div>
-            </div>
-        </div>
-
         <!-- Tabs -->
         <div class="flex border-b border-gray-700">
             <button id="tabCreate" class="flex-1 py-4 text-center font-semibold text-purple-400 border-b-2 border-purple-500 bg-gray-800 hover:bg-gray-750 transition">
@@ -205,6 +195,61 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-lg shadow-2xl overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
+                <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-sliders mr-2 text-purple-400"></i>Pengaturan API</h2>
+                <button id="closeSettingsBtn" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <div class="flex flex-col gap-6">
+
+                    <!-- Suno Config -->
+                    <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-700">
+                        <label class="block text-sm font-semibold text-purple-300 mb-2">1. Suno API Key (Wajib)</label>
+                        <input type="password" id="apiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition mb-2" placeholder="Masukkan Suno API Key...">
+
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <p class="font-semibold text-gray-300">Cara mendapatkan:</p>
+                            <ol class="list-decimal list-inside pl-1 space-y-1">
+                                <li>Kunjungi <a href="https://sunoapi.org/dashboard" target="_blank" class="text-purple-400 hover:underline">sunoapi.org</a></li>
+                                <li>Login/Daftar akun baru.</li>
+                                <li>Salin Key dari dashboard Anda.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Gemini Config -->
+                    <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-700">
+                        <label class="block text-sm font-semibold text-teal-300 mb-2">2. Google Gemini API Key (Wajib)</label>
+                        <input type="password" id="geminiKey" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-teal-500 transition mb-2" placeholder="Masukkan Gemini API Key...">
+
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <p class="font-semibold text-gray-300">Cara mendapatkan (Gratis):</p>
+                            <ol class="list-decimal list-inside pl-1 space-y-1">
+                                <li>Kunjungi <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-teal-400 hover:underline">Google AI Studio</a></li>
+                                <li>Login dengan akun Google Anda.</li>
+                                <li>Klik "Create API Key" dan salin kodenya.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 italic text-center">
+                        <i class="fa-solid fa-lock mr-1"></i>Key Anda disimpan secara aman di browser local storage.
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-gray-700 bg-gray-900/50">
+                <button id="saveSettingsBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition hover:scale-[1.01]">
+                    Simpan & Lanjutkan
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Logic -->
     <script>
         // --- Configuration ---
@@ -235,6 +280,12 @@
         const progressBar = document.getElementById('progressBar');
         const progressPercent = document.getElementById('progressPercent');
 
+        // Settings Elements
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
         // Tabs
         const tabCreate = document.getElementById('tabCreate');
         const tabRemix = document.getElementById('tabRemix');
@@ -262,6 +313,46 @@
         let currentMode = "create"; // 'create' or 'remix'
 
         // --- Event Listeners ---
+
+        // Load Settings on Start
+        window.addEventListener('load', () => {
+            const storedSunoKey = localStorage.getItem('sunoApiKey');
+            const storedGeminiKey = localStorage.getItem('geminiApiKey');
+
+            if (storedSunoKey) apiKeyInput.value = storedSunoKey;
+            if (storedGeminiKey) geminiKeyInput.value = storedGeminiKey;
+
+            // Show modal if keys are missing
+            if (!storedSunoKey || !storedGeminiKey) {
+                openSettings();
+            }
+        });
+
+        // Settings Logic
+        settingsBtn.addEventListener('click', openSettings);
+        closeSettingsBtn.addEventListener('click', closeSettings);
+
+        saveSettingsBtn.addEventListener('click', () => {
+            const sunoKey = apiKeyInput.value.trim();
+            const geminiKey = geminiKeyInput.value.trim();
+
+            if (!sunoKey || !geminiKey) {
+                alert("Harap isi kedua API Key agar aplikasi berjalan lancar.");
+                return;
+            }
+
+            localStorage.setItem('sunoApiKey', sunoKey);
+            localStorage.setItem('geminiApiKey', geminiKey);
+            closeSettings();
+        });
+
+        function openSettings() {
+            settingsModal.classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            settingsModal.classList.add('hidden');
+        }
 
         // Tab Switching
         tabCreate.addEventListener('click', () => switchTab('create'));
