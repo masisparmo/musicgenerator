@@ -67,7 +67,7 @@
             <div class="grid gap-6">
                 <!-- File Upload -->
                 <div>
-                    <label class="block text-sm text-gray-400 mb-2">Upload Lagu Original (Max 10MB)</label>
+                    <label class="block text-sm text-gray-400 mb-2">Upload Lagu Original (Max 10MB, Max 60 Detik)</label>
                     <div class="relative border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-purple-500 transition cursor-pointer" id="dropZone">
                         <input type="file" id="audioFile" accept="audio/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                         <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-500 mb-2"></i>
@@ -89,8 +89,11 @@
                             <i class="fa-solid fa-wand-magic"></i> Auto Extract (Gemini)
                         </button>
                     </div>
-                    <textarea id="lyricsInput" rows="4" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Masukkan lirik lagu asli di sini agar vokal tetap terjaga..."></textarea>
-                    <p class="text-xs text-gray-500 mt-1" id="lyricsStatus">*Gunakan fitur Auto Extract jika Anda memiliki API Key Gemini.</p>
+                    <textarea id="lyricsInput" rows="4" maxlength="5000" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Masukkan lirik lagu asli di sini agar vokal tetap terjaga..."></textarea>
+                    <div class="flex justify-between mt-1">
+                        <p class="text-xs text-gray-500" id="lyricsStatus">*Gunakan fitur Auto Extract jika Anda memiliki API Key Gemini.</p>
+                        <span class="text-xs text-gray-500" id="lyricsCount">0/5000</span>
+                    </div>
                 </div>
 
                 <!-- Style Input -->
@@ -101,8 +104,11 @@
                             <i class="fa-solid fa-sparkles"></i> Sempurnakan Style (Gemini)
                         </button>
                     </div>
-                    <textarea id="styleTags" rows="2" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Contoh: acoustic guitar, emotional, slow tempo, jazz version"></textarea>
-                    <p class="text-xs text-gray-500 mt-1" id="styleStatus"></p>
+                    <textarea id="styleTags" rows="2" maxlength="1000" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Contoh: acoustic guitar, emotional, slow tempo, jazz version"></textarea>
+                    <div class="flex justify-between mt-1">
+                        <p class="text-xs text-gray-500" id="styleStatus"></p>
+                        <span class="text-xs text-gray-500" id="styleCount">0/1000</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -187,6 +193,8 @@
         const progressBar = document.getElementById('progressBar');
         const progressPercent = document.getElementById('progressPercent');
         const progressStatus = document.getElementById('progressStatus');
+        const lyricsCount = document.getElementById('lyricsCount');
+        const styleCount = document.getElementById('styleCount');
 
         // --- State ---
         let isProcessing = false;
@@ -194,10 +202,51 @@
 
         // --- Event Listeners ---
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                fileNameDisplay.textContent = e.target.files[0].name;
-                fileNameDisplay.classList.add("text-purple-400");
+            const file = e.target.files[0];
+            if (file) {
+                // 1. Size Check (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert("File terlalu besar! Maksimal 10MB.");
+                    fileInput.value = "";
+                    fileNameDisplay.textContent = "Klik atau seret file audio ke sini";
+                    fileNameDisplay.classList.remove("text-purple-400");
+                    return;
+                }
+
+                // 2. Duration Check (60s)
+                const audio = new Audio();
+                const objectUrl = URL.createObjectURL(file);
+                audio.src = objectUrl;
+
+                audio.onloadedmetadata = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (audio.duration > 60) {
+                        alert("Durasi audio terlalu panjang! Maksimal 60 detik untuk model ini.");
+                        fileInput.value = "";
+                        fileNameDisplay.textContent = "Klik atau seret file audio ke sini";
+                        fileNameDisplay.classList.remove("text-purple-400");
+                    } else {
+                        fileNameDisplay.textContent = file.name;
+                        fileNameDisplay.classList.add("text-purple-400");
+                    }
+                };
+
+                audio.onerror = () => {
+                     URL.revokeObjectURL(objectUrl);
+                     alert("File audio tidak valid atau corrupt.");
+                     fileInput.value = "";
+                     fileNameDisplay.textContent = "Klik atau seret file audio ke sini";
+                     fileNameDisplay.classList.remove("text-purple-400");
+                };
             }
+        });
+
+        lyricsInput.addEventListener('input', (e) => {
+            lyricsCount.textContent = `${e.target.value.length}/5000`;
+        });
+
+        styleInput.addEventListener('input', (e) => {
+            styleCount.textContent = `${e.target.value.length}/1000`;
         });
 
         instrumentalCheck.addEventListener('change', (e) => {
